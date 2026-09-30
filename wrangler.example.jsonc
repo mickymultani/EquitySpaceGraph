@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "your-equity-space",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-09-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "TYPESAFE_MODEL": "jev-latest",
+    "GROQ_MODEL": "llama-3.3-70b-versatile",
+    "SEC_USER_AGENT": "YourEquitySpace/1.0 your-email@example.com"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "your-equity-space",
+      "database_id": "replace-with-your-d1-database-id",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}

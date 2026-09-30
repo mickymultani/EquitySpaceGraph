@@ -1,0 +1,30 @@
+import {NextRequest,NextResponse,type AppEnv} from "@/lib/http";
+import {getOfficialMacroEvents,type MacroImportance} from "@/lib/macro-calendar";
+
+type PulseItem={id:string;headline:string;summary:string;source:string;url:string;datetime:number;related:string[];kind:"story"|"earnings"|"macro";category?:string;importance?:MacroImportance};
+const iso=(date:Date)=>date.toISOString().slice(0,10);
+const cleanSymbols=(raw:string|null)=>Array.from(new Set((raw||"").split(",").map(x=>x.trim().toUpperCase()).filter(x=>/^[A-Z0-9.-]{1,16}$/.test(x)))).slice(0,18);
+const text=(value:unknown,max=500)=>typeof value==="string"?value.slice(0,max):"";
+const number=(value:unknown)=>typeof value==="number"&&Number.isFinite(value)?value:0;
+
+export async function GET(request:NextRequest,env:AppEnv){
+  const mode=request.nextUrl.searchParams.get("mode")==="catalysts"?"catalysts":"stories",symbols=cleanSymbols(request.nextUrl.searchParams.get("symbols")),token=env.FINNHUB_API_KEY;
+  if(!token&&mode==="stories")return NextResponse.json({items:[],error:"News intelligence is not configured"},{status:503});
+  const now=new Date(),items:PulseItem[]=[];
+  if(mode==="stories"){
+    if(!token)return NextResponse.json({items:[],error:"News intelligence is not configured"},{status:503});
+    const from=new Date(now.getTime()-7*86400000);
+    try{
+      const responses=await Promise.all(symbols.slice(0,10).map(async symbol=>{const response=await fetch(`https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(symbol)}&from=${iso(from)}&to=${iso(now)}&token=${encodeURIComponent(token)}`,{cache:"no-store"});if(!response.ok)return[];const body=await response.json() as Array<Record<string,unknown>>;return(Array.isArray(body)?body:[]).slice(0,5).map(n=>({id:String(n.id||`${symbol}-${n.datetime}-${n.headline}`),headline:text(n.headline,240),summary:text(n.summary,700),source:text(n.source,100)||"Company news",url:text(n.url,700),datetime:number(n.datetime),related:[symbol],kind:"story" as const}))}));
+      items.push(...responses.flat());
+      const general=await fetch(`https://finnhub.io/api/v1/news?category=general&token=${encodeURIComponent(token)}`,{cache:"no-store"});if(general.ok){const body=await general.json() as Array<Record<string,unknown>>,tracked=new Set(symbols);for(const n of(Array.isArray(body)?body:[]).slice(0,60)){const related=text(n.related,200).split(",").map(x=>x.trim().toUpperCase()).filter(x=>tracked.has(x));if(!related.length)continue;items.push({id:String(n.id||`general-${n.datetime}-${n.headline}`),headline:text(n.headline,240),summary:text(n.summary,700),source:text(n.source,100)||"Market news",url:text(n.url,700),datetime:number(n.datetime),related,kind:"story"})}}
+    }catch{/* Return any successfully collected items. */}
+  }else{
+    const to=new Date(now.getTime()+75*86400000),symbolSet=new Set(symbols);
+    const official=await getOfficialMacroEvents(now,to);for(const macro of official)items.push({id:macro.id,headline:macro.title,summary:macro.summary,source:macro.source,url:macro.sourceUrl,datetime:macro.datetime,related:[],kind:"macro",category:macro.category,importance:macro.importance});
+    if(token)try{const response=await fetch(`https://finnhub.io/api/v1/calendar/earnings?from=${iso(now)}&to=${iso(to)}&token=${encodeURIComponent(token)}`,{cache:"no-store"});if(response.ok){const body=await response.json() as{earningsCalendar?:Array<Record<string,unknown>>};for(const event of body.earningsCalendar||[]){const symbol=text(event.symbol,18).toUpperCase();if(!symbolSet.has(symbol))continue;const date=text(event.date,24),hour=text(event.hour,16);items.push({id:`earnings-${symbol}-${date}`,headline:`${symbol} earnings${date?` · ${date}`:""}${hour?` · ${hour}`:""}`,summary:`EPS estimate: ${String(event.epsEstimate??"not supplied")}. Revenue estimate: ${String(event.revenueEstimate??"not supplied")}.`,source:"Finnhub earnings calendar",url:"",datetime:Math.floor(new Date(date).getTime()/1000)||0,related:[symbol],kind:"earnings",category:"company",importance:"high"})}}}catch{/* Official macro events remain available. */}
+    if(token)try{const response=await fetch(`https://finnhub.io/api/v1/calendar/economic?from=${iso(now)}&to=${iso(to)}&token=${encodeURIComponent(token)}`,{cache:"no-store"});if(response.ok){const body=await response.json() as{economicCalendar?:Array<Record<string,unknown>>};for(const event of(body.economicCalendar||[]).filter(e=>/FOMC|Federal Reserve|CPI|inflation|employment|jobs|payroll|unemployment|JOLTS|interest rate|GDP|PCE|retail sales|PMI|consumer confidence/i.test(text(e.event,140))).slice(0,30)){const name=text(event.event,140),when=text(event.time,50)||text(event.date,24);items.push({id:`macro-${name}-${when}`,headline:`${name}${when?` · ${when}`:""}`,summary:`Country: ${text(event.country,50)||"not supplied"}. Prior: ${String(event.prev??"not supplied")}. Estimate: ${String(event.estimate??"not supplied")}.`,source:"Finnhub economic calendar",url:"https://finnhub.io/docs/api/economic-calendar",datetime:Math.floor(new Date(when).getTime()/1000)||0,related:[],kind:"macro",category:"economic",importance:/FOMC|interest rate|CPI|payroll|employment|GDP|PCE/i.test(name)?"critical":"high"})}}}catch{/* Official macro events remain available. */}
+  }
+  const seen=new Set<string>(),deduped=items.filter(item=>item.headline&&!seen.has(`${item.headline.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,60)}-${new Date(item.datetime*1000).toISOString().slice(0,10)}`)&&(seen.add(`${item.headline.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,60)}-${new Date(item.datetime*1000).toISOString().slice(0,10)}`),true)).sort((a,b)=>mode==="stories"?b.datetime-a.datetime:a.datetime-b.datetime).slice(0,80);
+  return NextResponse.json({items:deduped,mode,asOf:Date.now(),coverage:mode==="catalysts"?{windowDays:75,sources:["Federal Reserve","U.S. Bureau of Labor Statistics","U.S. Bureau of Economic Analysis","Finnhub earnings and economic calendar"]}:undefined},{headers:{"Cache-Control":"private, max-age=300"}});
+}

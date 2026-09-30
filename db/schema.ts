@@ -1,0 +1,86 @@
+import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+
+export const marketSnapshot = sqliteTable("market_snapshot", {
+  symbol: text("symbol").primaryKey(),
+  price: real("price"),
+  change: real("change"),
+  changePct: real("change_pct"),
+  previousClose: real("previous_close"),
+  marketCap: real("market_cap"),
+  sharesOutstanding: real("shares_outstanding"),
+  currency: text("currency").notNull().default("USD"),
+  companyUrl: text("company_url"),
+  logo: text("logo"),
+  quoteTimestamp: integer("quote_timestamp"),
+  quoteRefreshedAt: integer("quote_refreshed_at"),
+  profileRefreshedAt: integer("profile_refreshed_at"),
+  status: text("status").notNull().default("unavailable"),
+});
+
+export const marketRefreshState = sqliteTable("market_refresh_state", {
+  id: integer("id").primaryKey(),
+  startedAt: integer("started_at"),
+  completedAt: integer("completed_at"),
+  expectedCount: integer("expected_count").notNull().default(0),
+  completedCount: integer("completed_count").notNull().default(0),
+  errorCount: integer("error_count").notNull().default(0),
+  status: text("status").notNull().default("idle"),
+  message: text("message"),
+});
+
+export const backfillCompany = sqliteTable("backfill_company", {
+  ticker: text("ticker").primaryKey(),
+  companyId: text("company_id").notNull(),
+  name: text("name").notNull(),
+  layerId: text("layer_id").notNull(),
+  layer: text("layer").notNull(),
+  status: text("status").notNull().default("pending"),
+  cik: text("cik"),
+  filingsFound: integer("filings_found").notNull().default(0),
+  filingsProcessed: integer("filings_processed").notNull().default(0),
+  claimsExtracted: integer("claims_extracted").notNull().default(0),
+  claimsVerified: integer("claims_verified").notNull().default(0),
+  claimsReview: integer("claims_review").notNull().default(0),
+  attempts: integer("attempts").notNull().default(0),
+  lastError: text("last_error"),
+  startedAt: integer("started_at"),
+  completedAt: integer("completed_at"),
+  updatedAt: integer("updated_at").notNull(),
+}, table => [index("backfill_company_status_idx").on(table.status), index("backfill_company_layer_idx").on(table.layerId)]);
+
+export const sourceDocument = sqliteTable("source_document", {
+  id: text("id").primaryKey(),
+  ticker: text("ticker").notNull(),
+  cik: text("cik"),
+  form: text("form").notNull(),
+  filingDate: text("filing_date"),
+  reportDate: text("report_date"),
+  sourceUrl: text("source_url").notNull(),
+  status: text("status").notNull(),
+  charactersAnalyzed: integer("characters_analyzed").notNull().default(0),
+  error: text("error"),
+  processedAt: integer("processed_at"),
+}, table => [index("source_document_ticker_idx").on(table.ticker), index("source_document_status_idx").on(table.status)]);
+
+export const extractedClaim = sqliteTable("extracted_claim", {
+  id: text("id").primaryKey(),
+  ticker: text("ticker").notNull(),
+  subjectName: text("subject_name").notNull(),
+  predicate: text("predicate").notNull(),
+  objectName: text("object_name").notNull(),
+  objectTicker: text("object_ticker"),
+  relationshipClass: text("relationship_class").notNull(),
+  product: text("product"),
+  amount: text("amount"),
+  percentage: text("percentage"),
+  mechanism: text("mechanism"),
+  evidenceExcerpt: text("evidence_excerpt").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  sourceForm: text("source_form").notNull(),
+  filingDate: text("filing_date"),
+  groqConfidence: real("groq_confidence").notNull(),
+  jevProbability: real("jev_probability"),
+  jevMateriality: real("jev_materiality"),
+  evidenceStatus: text("evidence_status").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, table => [index("extracted_claim_ticker_idx").on(table.ticker), index("extracted_claim_status_idx").on(table.evidenceStatus), index("extracted_claim_object_idx").on(table.objectTicker)]);

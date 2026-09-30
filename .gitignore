@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+
+# Framework and build output
+.next/
+dist/
+.pages-functions/
+out/
+tsconfig.tsbuildinfo
+
+# Cloudflare local state
+.wrangler/
+.dev.vars
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Test and tool output
+coverage/
+*.log
+npm-debug.log*
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local work areas
+outputs/
+work/

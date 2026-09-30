@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "equity-space-graph",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-09-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "TYPESAFE_MODEL": "jev-latest",
+    "GROQ_MODEL": "llama-3.3-70b-versatile"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "equity-space-graph",
+      "database_id": "09687ccd-4149-4203-b62a-903c3d9aebb1",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "observability": { "enabled": true }
+}

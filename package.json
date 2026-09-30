@@ -1,0 +1,47 @@
+{
+  "name": "equity-space-graph",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Evidence-aware AI equity graph showcasing JEV as a typed classification and decision layer.",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "vite build",
+    "preview": "wrangler pages dev dist --port 8788",
+    "pages:functions:build": "WRANGLER_LOG_PATH=.wrangler/logs/pages-functions.log wrangler pages functions build functions --outdir .pages-functions --compatibility-date 2026-09-29 --compatibility-flag nodejs_compat",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name equity-space-graph",
+    "lint": "eslint . --ignore-pattern dist",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run typecheck && npm run lint && npm run build && npm run pages:functions:build",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply equity-space-graph --local",
+    "db:migrate:remote": "wrangler d1 migrations apply equity-space-graph --remote"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "drizzle-orm": "0.45.2",
+    "lucide-react": "^1.31.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "tailwind-merge": "3.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260515.1",
+    "@eslint/js": "^9.39.4",
+    "@vitejs/plugin-react": "latest",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "drizzle-kit": "0.31.10",
+    "eslint": "9.39.4",
+    "eslint-plugin-react-hooks": "latest",
+    "globals": "latest",
+    "tailwindcss": "4.2.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "latest",
+    "vite": "8.0.13",
+    "wrangler": "4.92.0"
+  },
+  "type": "module"
+}
